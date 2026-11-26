@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>원료 샘플 출고대장</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Inter:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: 창고 사무실의 출고 장부 — 짧고 정확하게, 숫자는 크게
+   IDEA: 택배 운송장/출고 전표. 한 건 = 한 장의 전표
+   PICTURE: 날짜별로 묶인 출고 전표 목록이 곧 첫 화면
+   COLOUR+TYPE: 흰 바탕, 먹색, 운송장 파랑 하나, 슬레이트 보조 / Noto Sans KR + Inter(숫자)
+   LAYOUT: 상단 탭 → 검색·필터 → 전표 목록, 오른쪽 아래 '출고 등록' 버튼, 상세·등록은 아래서 올라오는 시트 */
+:root{color-scheme:light dark;--bg:light-dark(#fff,#10191e);--ink:light-dark(#121212,#eef2f4);--mute:light-dark(#5d6670,#9aa7b0);--line:light-dark(#e3e7ea,#24323a);--panel:light-dark(#f2f6f8,#16232a);--red:light-dark(#1d4ed8,#4c7dff);--slate:light-dark(#2e6f8e,#7fb6d1);--ok:light-dark(#1f7a4d,#6fd3a0);--warn:light-dark(#9a5b00,#f0b45a)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Noto Sans KR",system-ui,sans-serif;overflow-x:clip}
+.num{font-family:Inter,"Noto Sans KR",sans-serif;font-variant-numeric:tabular-nums}
+header{padding:18px max(4vw,16px) 0;border-top:6px solid var(--red)}
+h1{font-size:clamp(24px,4vw,34px);line-height:1.1;margin:0;font-weight:700;text-wrap:balance}
+.sub{color:var(--mute);font-size:14px;margin:6px 0 0}
+.sub b{color:var(--ink)}
+nav{display:flex;gap:4px;margin-top:14px;border-bottom:1px solid var(--line);overflow-x:auto}
+nav button{flex:none;border:0;background:none;font:inherit;font-weight:500;padding:12px 14px;color:var(--mute);border-bottom:3px solid transparent;cursor:pointer;min-height:44px}
+nav button[aria-selected=true]{color:var(--ink);border-color:var(--red)}
+main{padding:14px max(4vw,16px) 120px;max-width:1160px;margin:0 auto}
+header>*{max-width:calc(1160px - 2 * max(4vw,16px));margin-left:auto;margin-right:auto}
+header>.sub{margin:6px auto 0}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+input,select,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:44px;width:100%}
+textarea{min-height:84px;resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--slate);outline-offset:2px}
+.search{flex:1 1 260px}
+.bar select{flex:0 1 160px;width:auto}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:14px;min-height:36px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn{border:1px solid var(--ink);background:var(--ink);color:var(--bg);border-radius:8px;padding:10px 16px;font:inherit;font-weight:500;min-height:44px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+.btn:disabled{opacity:.45;cursor:default}
+.day{margin:18px 0 6px;display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid var(--ink);padding-bottom:4px}
+.day h2{font-size:17px;margin:0}.day span{color:var(--mute);font-size:13px}
+.slip{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:12px 4px;border-bottom:1px dashed var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left;font:inherit;color:inherit}
+.slip:hover{background:var(--panel)}
+.slip .m{font-weight:700;font-size:16px}
+.slip .q{font-size:17px;font-weight:700;text-align:right;white-space:nowrap}
+.slip .w{color:var(--mute);font-size:14px}
+.badge{display:inline-block;font-size:12px;font-weight:700;border-radius:4px;padding:2px 7px;white-space:nowrap;border:1px solid currentColor}
+.s-요청{color:var(--red)}.s-요청확인,.s-요청확인\(보세\){color:var(--slate)}.s-진행중{color:var(--warn)}.s-전달완료{color:var(--ok)}.s-취소{color:var(--mute);text-decoration:line-through}
+.tag{font-size:12px;color:var(--mute);border:1px solid var(--line);border-radius:4px;padding:1px 6px;margin-left:4px;white-space:nowrap}
+.empty{padding:40px 8px;color:var(--mute);text-align:center}
+.note{background:var(--panel);border-left:4px solid var(--red);padding:10px 14px;border-radius:4px;font-size:14px;margin:10px 0}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-weight:700;color:var(--mute);font-size:13px}
+td.r,th.r{text-align:right;white-space:nowrap}
+tr.click{cursor:pointer}tr.click:hover{background:var(--panel)}
+.fab{position:fixed;right:max(4vw,16px);bottom:calc(20px + env(safe-area-inset-bottom));z-index:5;box-shadow:0 6px 18px rgba(0,0,0,.22);border-radius:999px;padding:14px 22px;font-size:16px}
+.sheet{position:fixed;inset:0;z-index:10;display:none;background:rgba(0,0,0,.4)}
+.sheet.open{display:block}
+.card{position:absolute;left:0;right:0;bottom:0;max-height:92vh;overflow:auto;background:var(--bg);border-radius:16px 16px 0 0;padding:18px max(4vw,16px) calc(24px + env(safe-area-inset-bottom));max-width:760px;margin:auto;border-top:6px solid var(--red)}
+@media(prefers-reduced-motion:no-preference){.sheet.open .card{animation:up .18s ease-out}@keyframes up{from{transform:translateY(24px);opacity:.6}}}
+.card h3{font-size:20px;margin:0 0 4px;line-height:1.3}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+.grid .full{grid-column:1/-1}
+label{display:block;font-size:13px;color:var(--mute);font-weight:500}
+label>input,label>select,label>textarea{margin-top:4px}
+dl{display:grid;grid-template-columns:7em minmax(0,1fr);gap:6px 12px;margin:12px 0;font-size:15px}
+dt{color:var(--mute)}dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:90px;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;z-index:20;font-size:14px;display:none;max-width:90vw}
+.stat{display:flex;gap:20px;flex-wrap:wrap;margin:4px 0 8px}
+.stat div{font-size:13px;color:var(--mute)}.stat b{display:block;font-size:26px;color:var(--ink);line-height:1.1}
+.hide{display:none!important}
+pre.copy{background:var(--panel);padding:12px;border-radius:8px;white-space:pre-wrap;font:14px/1.6 "Noto Sans KR",sans-serif;margin:8px 0}
+@media(max-width:600px){.grid{grid-template-columns:minmax(0,1fr)}dl{grid-template-columns:6em minmax(0,1fr)}.hide-sm{display:none}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>원료 샘플 출고대장</h1>
+  <p class="sub" id="sub">PIN을 입력하세요.</p>
+  <nav role="tablist">
+    <button role="tab" data-tab="list" aria-selected="true">출고내역</button>
+    <button role="tab" data-tab="mat" aria-selected="false">원료별</button>
+    <button role="tab" data-tab="erp" aria-selected="false">ERP 재고</button>
+    <button role="tab" data-tab="set" aria-selected="false">설정</button>
+  </nav>
+</header>
+<main>
+  <section id="t-list">
+    <div class="note">출고 마감: <b>안산 14시 전</b> · <b>보세창고(디피월드) 11시 전</b>. 오래 냉장보관한 액상은 개봉 여부와 관계없이, 오래된 개봉 오일은 건별로 품질 확인 후 출고.</div>
+    <div class="bar">
+      <input class="search" id="q" type="search" placeholder="원료·업체·메모·LOT 검색" autocomplete="off">
+      <select id="period" aria-label="기간"><option value="30">최근 30일</option><option value="7">최근 7일</option><option value="90">최근 3개월</option><option value="365">최근 1년</option><option value="0">전체</option></select>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div id="matFilter" class="note hide"></div>
+    <div id="list"></div>
+  </section>
+  <section id="t-mat" class="hide">
+    <div class="bar"><input class="search" id="mq" type="search" placeholder="원료명 검색" autocomplete="off"></div>
+    <div class="scroll"><table><thead><tr><th>원료</th><th class="r">출고건</th><th class="r hide-sm">총 출고량</th><th class="r">최근 출고</th><th class="r hide-sm">ERP 재고</th></tr></thead><tbody id="matBody"></tbody></table></div>
+  </section>
+  <section id="t-erp" class="hide">
+    <p class="sub" id="erpMeta">ERP 재고 자료가 아직 없습니다.</p>
+    <details id="erpPasteBox"><summary class="btn ghost" style="display:inline-block">이카운트 재고 올리기</summary>
+      <div class="note">이카운트 <b>창고별재고현황</b>을 엑셀로 내려받아 그 파일을 그대로 올리세요. 엑셀에서 표 전체(제목줄 포함)를 복사해 붙여넣어도 됩니다. 올린 내용으로 기존 재고 자료를 통째로 바꿉니다.</div>
+      <div class="row"><label class="btn" style="display:inline-block">엑셀 파일 선택<input type="file" id="erpFile" accept=".xlsx,.xls,.csv" style="display:none"></label></div>
+      <textarea id="erpPaste" rows="5" placeholder="또는 엑셀에서 표를 복사해 여기에 붙여넣기" style="margin-top:10px"></textarea>
+      <div class="row"><button class="btn ghost" id="erpPreviewBtn">붙여넣은 내용 읽기</button><button class="btn red" id="erpSaveBtn" disabled>저장</button></div>
+      <p class="sub" id="erpPreview"></p>
+    </details>
+    <div class="bar" style="margin-top:12px"><input class="search" id="eq" type="search" placeholder="원료명·품목코드로 창고별 재고 검색" autocomplete="off"></div>
+    <div class="scroll"><table><thead><tr><th class="hide-sm">코드</th><th>품목명 · 창고별 재고</th><th class="r">합계</th></tr></thead><tbody id="erpBody"></tbody></table></div>
+  </section>
+  <section id="t-set" class="hide">
+    <h2 style="font-size:18px">택배 예약 (로지스허브)</h2>
+    <div class="grid">
+      <label class="full">로지스허브 예약 페이지 주소 (https://…)<input id="setUrl" type="url" placeholder="https://"></label>
+      <label class="full">보내는 분 (택배예약 복사에 들어갈 기본값)<textarea id="setSender"></textarea></label>
+    </div>
+    <div class="row"><button class="btn" id="setSave">설정 저장</button></div>
+    <h2 style="font-size:18px;margin-top:28px">PIN 변경</h2>
+    <p class="sub">PIN을 바꾸면 모든 사람이 새 PIN으로 다시 들어와야 합니다.</p>
+    <div class="grid"><label>새 PIN (4자리 이상)<input id="newPin" type="password" inputmode="numeric" autocomplete="new-password"></label></div>
+    <div class="row"><button class="btn ghost" id="pinSave">PIN 바꾸기</button><button class="btn ghost" id="logout">이 기기에서 나가기</button></div>
+    <p class="sub">데이터는 구글 시트 '원료 샘플 출고대장 (웹앱 데이터)'에 저장됩니다.</p>
+  </section>
+</main>
+<button class="btn red fab" id="addBtn">+ 출고 등록</button>
+
+<div class="sheet open" id="gate" style="background:var(--bg)"><div class="card" style="position:relative;margin:12vh auto 0;border-radius:16px;max-width:420px">
+  <h3>원료 샘플 출고대장</h3><p class="sub">사내 PIN을 입력하세요.</p>
+  <form id="gateForm" class="row" onsubmit="return false"><input id="pinIn" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN" style="flex:1 1 160px;width:auto" required><button class="btn red" type="submit" id="pinBtn">들어가기</button></form>
+  <p class="sub" id="gateMsg"></p></div></div>
+<div class="sheet" id="detail"><div class="card" id="detailCard"></div></div>
+<div class="sheet" id="formSheet"><div class="card">
+  <h3 id="formTitle">출고 등록</h3>
+  <p class="sub">KG당 10만원 이상 → 50g까지 무상, 10만원 이하 → 100g까지 무상 (업체마다 다름)</p>
+  <form id="form" onsubmit="return false" class="grid" style="margin-top:12px">
+    <label class="full">원료 *<input name="mat" list="dlMat" required></label>
+    <div class="full note" id="formStock" style="border-left-color:var(--slate);margin:0">원료명을 입력하면 ERP 창고별 재고가 여기에 나옵니다.</div>
+    <label>출고일 *<input name="ship" type="date" required></label>
+    <label>출고지<select name="origin"><option>안산</option><option>안산샘플</option><option>보세창고(디피월드)</option><option>공급사 직접</option><option>기타</option></select></label>
+    <label>중량<input name="wt" list="dlWt" placeholder="예: 50g, 1kg"></label>
+    <label>수량<input name="qty" type="number" min="0" step="1" inputmode="numeric"></label>
+    <label>진행상황<select name="status"></select></label>
+    <label>비용<select name="cost"><option value="">-</option><option>무상</option><option>유상</option><option>확인필요</option></select></label>
+    <label>kg당 단가<input name="kg" placeholder="유상일 때"></label>
+    <label>입고 예정일<input name="arrive" type="date"></label>
+    <label>발주처<input name="po" list="dlCo" placeholder="쉼표로 여러 곳"></label>
+    <label>엔드처<input name="end" list="dlCo"></label>
+    <label>입고처 (받는 곳)<input name="dest" list="dlCo"></label>
+    <label>발신인<input name="snd" list="dlCo"></label>
+    <label class="full">입고지 정보 (주소 / 담당자·연락처)<textarea name="info" placeholder="1줄: 주소&#10;2줄: 담당자 연락처"></textarea></label>
+    <div class="full" id="courierBox" style="border-top:1px solid var(--line);padding-top:10px"><b>택배예약 정보</b> <span class="sub">(출고지가 안산·안산샘플이면 로지스허브 한진원클릭 단건 예약에 사용)</span></div>
+    <label>받는 분 이름<input name="rcvName" placeholder="담당자"></label>
+    <label>받는 분 휴대폰<input name="rcvPhone" inputmode="tel" placeholder="010-0000-0000"></label>
+    <label class="full">배송 주소<input name="rcvAddr" placeholder="도로명 주소"></label>
+    <label class="full">상세 주소<input name="rcvAddr2" placeholder="동·층·호, 회사명"></label>
+    <label>택배 물품명<input name="itemName" maxlength="20" placeholder="원료명 줄임"></label>
+    <label>물품단가 (원)<input name="itemPrice" type="number" min="0" max="500000" step="1000" inputmode="numeric"></label>
+    <label>박스타입<input name="box" list="dlBox"></label>
+    <label>품질 (소비기한·LOT)<input name="quality"></label>
+    <label>비고<input name="memo"></label>
+    <label>등록자<input name="reg" placeholder="이름"></label>
+    <div class="full row"><button class="btn red" type="submit" id="formSave">저장</button><button class="btn ghost" type="button" data-close>취소</button></div>
+  </form>
+</div></div>
+<datalist id="dlMat"></datalist><datalist id="dlCo"></datalist><datalist id="dlWt"></datalist><datalist id="dlBox"><option value="S"><option value="M"><option value="L"></datalist>
+<div class="toast" id="toast"></div>
+
+<script>
+{
+const HTTPS="https:"+"/"+"/";
+const DEFAULT_PRICE=500000;
+const shortName=m=>String(m||"").replace(/\((샘플|가제|원료|완제품)\)|\[[^\]]*\]/g," ").replace(/\([^)]*\)/g," ").replace(/\s+/g," ").trim().slice(0,20);
+const PHONE_RE=/0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/;
+function parseInfo(info){const lines=String(info||"").split("\n").map(x=>x.trim()).filter(Boolean);const ph=(String(info||"").match(PHONE_RE)||[""])[0];let addr=lines[0]||"",addr2="";const m=addr.match(/^(.*?)\s*\(([^)]*)\)\s*$/);if(m){addr=m[1];addr2=m[2]}const who=lines.slice(1).join(" ").replace(ph,"").trim();return{rcvAddr:addr,rcvAddr2:addr2,rcvPhone:ph,rcvName:who}}
+const ANSAN=["안산","안산샘플","안산 사무실"];
+const STATUSES=["요청","요청확인","요청확인(보세)","진행 중","전달완료","취소"];
+const DEFAULT_SENDER="프라임에이치앤비\n경기도 안산시 단원구 산단로 163번길 73 3층\n010-7526-5257";
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const today=()=>new Date(Date.now()+9*36e5).toISOString().slice(0,10);
+const arr=v=>Array.isArray(v)?v:(v?String(v).split(",").map(s=>s.trim()).filter(Boolean):[]);
+const grams=w=>{const m=String(w||"").replace(/\s/g,"").match(/^([\d.]+)(kg|g|ml|l)?$/i);if(!m)return 0;const n=parseFloat(m[1]);const u=(m[2]||"g").toLowerCase();return u==="kg"||u==="l"?n*1000:n};
+const fmtG=g=>!g?"-":g>=1000?(Math.round(g/100)/10)+"kg":Math.round(g*100)/100+"g";
+const fmtD=d=>{if(!d)return"날짜 없음";const t=new Date(d+"T00:00:00");return `${d.slice(5,7)}월 ${d.slice(8,10)}일 (${"일월화수목금토"[t.getDay()]})`};
+const toast=m=>{const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display="none",2600)};
+const norm=s=>String(s||"").toLowerCase().replace(/\((샘플|가제|원료|완제품)\)/g,"").replace(/\[[^\]]*\]/g,"").replace(/[\s\-_()\[\],.]/g,"");
+const toks=s=>(String(s||"").replace(/\((샘플|가제|원료|완제품)\)|\[[^\]]*\]/g," ").match(/[가-힣A-Za-z0-9%]{2,}/g)||[]).map(x=>x.toLowerCase());
+
+let PIN="",canWrite=true,isAdmin=true,isOwner=true;
+const API_URL="https://script.google.com/macros/s/AKfycbwuJj_yXaSXbwQO4ClnwwujWXYx4deiSXwWyTFSQjjI7P-vMl1PjFuwsuWlyGnVE3Or/exec";
+const FN={api_login:"login",api_list:"list",api_save:"save",api_delete:"del",api_erp:"erp",api_erpSave:"erpSave",api_settings:"settings",api_changePin:"changePin"};
+const run=async(fn,...a)=>{let r;try{r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn:FN[fn],pin:PIN,args:a})})}catch(e){throw new Error("서버에 연결하지 못했습니다. 인터넷 연결을 확인하세요.")}
+  let j;try{j=await r.json()}catch(e){throw new Error("서버 응답을 읽지 못했습니다.")}if(!j.ok)throw new Error(j.error||"오류가 났습니다.");return j.data};
+const errMsg=e=>(e&&e.message)?e.message.replace(/^Exception:\s*/,""):"오류가 났습니다.";
+const ls={get:k=>{try{return localStorage.getItem(k)}catch{return null}},set:(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch{}}};
+let rows=[],erp=[],erpMeta=null,settings={},status=new Set(),matSel=null,editId=null,names={};
+
+for(const b of document.querySelectorAll("nav button"))b.onclick=()=>showTab(b.dataset.tab);
+function showTab(t){for(const b of document.querySelectorAll("nav button"))b.setAttribute("aria-selected",b.dataset.tab===t);for(const s of ["list","mat","erp","set"])$("#t-"+s).classList.toggle("hide",s!==t)}
+$("#chips").innerHTML=STATUSES.map(s=>`<button class="chip" aria-pressed="false" data-s="${esc(s)}">${esc(s)}</button>`).join("")+`<button class="chip" aria-pressed="false" id="courierChip">택배예약 대기</button>`;let courierOnly=false;
+$("#chips").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;if(b.id==="courierChip"){courierOnly=!courierOnly;b.setAttribute("aria-pressed",courierOnly);renderList();return}const s=b.dataset.s;status.has(s)?status.delete(s):status.add(s);b.setAttribute("aria-pressed",status.has(s));renderList()};
+$("#q").oninput=renderList;$("#period").onchange=renderList;$("#mq").oninput=renderMat;$("#eq").oninput=renderErp;
+document.querySelector('[name=status]').innerHTML=STATUSES.map(s=>`<option>${esc(s)}</option>`).join("");
+for(const sh of document.querySelectorAll(".sheet"))sh.addEventListener("click",e=>{if(e.target===sh||e.target.closest("[data-close]"))sh.classList.remove("open")});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")for(const sh of document.querySelectorAll(".sheet"))sh.classList.remove("open")});
+
+function sortRows(){rows.sort((a,b)=>(b.ship||"").localeCompare(a.ship||"")||(b.createdAt||"").localeCompare(a.createdAt||""))}
+function filtered(){
+  const q=$("#q").value.trim().toLowerCase(),days=+$("#period").value;
+  const from=days?new Date(Date.now()+9*36e5-days*864e5).toISOString().slice(0,10):"";
+  return rows.filter(r=>{
+    if(matSel!==null&&(r.mat||"")!==matSel)return false;
+    if(status.size&&!status.has(r.status))return false;
+    if(courierOnly&&r.courier!=="대기")return false;
+    if(from&&matSel===null&&!q&&!courierOnly&&(r.ship||"")<from)return false;
+    if(q){const hay=[r.mat,r.po,r.end,r.dest,r.snd,r.memo,r.quality,r.info,r.wt].flat().join(" ").toLowerCase();if(!q.split(/\s+/).every(w=>hay.includes(w)))return false}
+    return true});
+}
+function renderList(){
+  const list=filtered();
+  $("#matFilter").classList.toggle("hide",matSel===null);
+  if(matSel!==null)$("#matFilter").innerHTML=`<b>${esc(matSel||"원료 미기재")}</b> 출고 이력만 보는 중 · <button class="chip" id="clearMat">전체 보기</button>`;
+  const c=$("#clearMat");if(c)c.onclick=()=>{matSel=null;renderList()};
+  if(!list.length){$("#list").innerHTML=`<div class="empty">${rows.length?"조건에 맞는 출고가 없습니다. 기간을 넓히거나 검색어를 지워보세요.":"아직 출고 기록이 없습니다. '출고 등록'으로 시작하세요."}</div>`;return}
+  let html="",cur=null;
+  const byDay={};for(const r of list){(byDay[r.ship||""]??=[]).push(r)}
+  for(const d of Object.keys(byDay).sort().reverse()){
+    const g=byDay[d];html+=`<div class="day"><h2>${esc(fmtD(d))}</h2><span>${g.length}건</span></div>`;
+    for(const r of g)html+=`<button class="slip" data-id="${esc(r.id)}"><span class="m">${esc(r.mat||"원료 미기재")}</span><span class="q num">${esc(r.wt||"-")} × ${esc(r.qty??"-")}</span>
+      <span class="w">→ ${esc(arr(r.dest).join(", ")||"입고처 미기재")}${arr(r.po).length?` · 발주 ${esc(arr(r.po).join(", "))}`:""}${r.origin?`<span class="tag">${esc(r.origin)}</span>`:""}${r.courier==="대기"?`<span class="tag" style="color:var(--red);border-color:var(--red)">택배예약 대기</span>`:r.courier==="완료"?`<span class="tag">송장 ${esc(r.waybill||"")}</span>`:""}</span><span><span class="badge s-${esc((r.status||"").replace(/\s/g,""))}">${esc(r.status||"-")}</span></span></button>`;
+  }
+  $("#list").innerHTML=html;
+}
+$("#list").onclick=e=>{const b=e.target.closest(".slip");if(b)openDetail(b.dataset.id)};
+
+function erpGroups(name){
+  if(!erp.length||!name||name.length<2)return[];
+  const n=norm(name),t=toks(name),g={};
+  for(const e of erp){const en=norm(e.name);let s=0;if(en&&n&&(en.includes(n)||n.includes(en)))s+=5;const et=toks(e.name);for(const x of t)if(et.includes(x))s+=1;if(s<2)continue;
+    const k=(e.code||"")+"|"+e.name;const o=g[k]??={code:e.code,name:e.name,spec:e.spec,unit:e.unit,s,whs:[],total:0};o.whs.push({wh:e.wh||"창고 미기재",qty:e.qty});o.total+=parseFloat(e.qty)||0}
+  return Object.values(g).sort((a,b)=>b.s-a.s||b.total-a.total).slice(0,4);
+}
+const erpMatch=name=>erpGroups(name).map(o=>({name:o.name,qty:Math.round(o.total*1000)/1000,unit:o.unit}));
+function erpHtml(name){
+  if(!erp.length)return `<span style="color:var(--mute)">ERP 재고 자료가 없습니다. ERP 재고 탭에서 붙여넣으세요.</span>`;
+  const gs=erpGroups(name);if(!gs.length)return `<span style="color:var(--mute)">이름이 맞는 ERP 품목이 없습니다.</span>`;
+  return gs.map(o=>`<div style="margin:6px 0"><b>${esc(o.name)}</b>${o.code?` <span class="tag num">${esc(o.code)}</span>`:""}${o.spec?` <span class="tag">${esc(o.spec)}</span>`:""}
+   <table style="margin-top:4px"><tbody>${o.whs.map(w=>`<tr><td>${esc(w.wh)}</td><td class="r num">${esc(w.qty)} ${esc(o.unit||"")}</td></tr>`).join("")}<tr><td><b>합계</b></td><td class="r num"><b>${Math.round(o.total*1000)/1000} ${esc(o.unit||"")}</b></td></tr></tbody></table></div>`).join("")
+   +`<span style="color:var(--mute);font-size:13px">원료명이 비슷한 품목을 자동으로 찾은 결과입니다. 품목코드로 확인하세요 · 기준 ${esc((erpMeta?.updatedAt||"").slice(0,10))}</span>`;
+}
+function renderMat(){
+  const q=$("#mq").value.trim().toLowerCase(),m={};
+  for(const r of rows){if(r.status==="취소")continue;const k=r.mat||"";const o=m[k]??={n:0,g:0,last:""};o.n++;o.g+=grams(r.wt)*(+r.qty||0);if((r.ship||"")>o.last)o.last=r.ship||""}
+  const ks=Object.keys(m).filter(k=>!q||k.toLowerCase().includes(q)).sort((a,b)=>m[b].last.localeCompare(m[a].last));
+  $("#matBody").innerHTML=ks.length?ks.map(k=>{const o=m[k],e=erpMatch(k)[0];return `<tr class="click" data-k="${esc(k)}"><td>${esc(k||"원료 미기재")}</td><td class="r num">${o.n}</td><td class="r num hide-sm">${fmtG(o.g)}</td><td class="r num">${esc(o.last||"-")}</td><td class="r num hide-sm">${e?esc(e.qty)+" "+esc(e.unit||""):"-"}</td></tr>`}).join(""):`<tr><td colspan="5" class="empty">원료가 없습니다.</td></tr>`;
+}
+$("#matBody").onclick=e=>{const tr=e.target.closest("tr[data-k]");if(!tr)return;matSel=tr.dataset.k;showTab("list");renderList()};
+
+function openDetail(id){
+  const r=rows.find(x=>x.id===id);if(!r)return;
+    const by=r.reg||(r.src==="notion"?"노션에서 가져옴":"-");
+  $("#detailCard").innerHTML=`<h3>${esc(r.mat||"원료 미기재")}</h3>
+   <span class="badge s-${esc((r.status||"").replace(/\s/g,""))}">${esc(r.status||"-")}</span> <span class="tag">${esc(r.origin||"출고지 미기재")}</span>
+   <div class="row">${STATUSES.map(s=>`<button class="chip" data-st="${esc(s)}" aria-pressed="${s===r.status}" ${canWrite?"":"disabled"}>${esc(s)}</button>`).join("")}</div>
+   <dl>
+    <dt>출고일</dt><dd class="num">${esc(r.ship||"-")}</dd><dt>입고 예정</dt><dd class="num">${esc(r.arrive||"-")}</dd>
+    <dt>중량 × 수량</dt><dd class="num">${esc(r.wt||"-")} × ${esc(r.qty??"-")} <span style="color:var(--mute)">(${fmtG(grams(r.wt)*(+r.qty||0))})</span></dd>
+    <dt>비용</dt><dd>${esc(r.cost||"-")}${r.kg?` · kg당 ${esc(r.kg)}`:""}</dd>
+    <dt>발주처</dt><dd>${esc(arr(r.po).join(", ")||"-")}</dd><dt>엔드처</dt><dd>${esc(arr(r.end).join(", ")||"-")}</dd>
+    <dt>입고처</dt><dd>${esc(arr(r.dest).join(", ")||"-")}</dd><dt>발신인</dt><dd>${esc(arr(r.snd).join(", ")||"-")}</dd>
+    <dt>입고지 정보</dt><dd>${esc(r.info||"-")}</dd><dt>품질</dt><dd>${esc(r.quality||"-")}</dd><dt>비고</dt><dd>${esc(r.memo||"-")}</dd>
+    <dt>창고별 재고</dt><dd style="white-space:normal">${erpHtml(r.mat)}</dd>
+    <dt>등록</dt><dd>${esc(by)}${r.updAt?` · 수정 ${esc(r.updAt.slice(0,10))}`:""}</dd>
+   </dl>
+   <div class="row">
+    <button class="btn" id="dCopy">택배예약 정보 복사</button>
+    ${settings.logishubUrl&&String(settings.logishubUrl).startsWith(HTTPS)?`<a class="btn ghost" href="${esc(settings.logishubUrl)}" target="_blank" rel="noopener" style="text-decoration:none">로지스허브 열기 ↗</a>`:`<span class="sub" style="align-self:center">로지스허브 주소는 설정 탭에서 등록</span>`}
+   </div>
+   <pre class="copy" id="dCopyText">${esc(courierText(r))}</pre>
+   ${r.courier?`<div class="note" style="border-left-color:var(--slate)">택배예약: <b>${esc(r.courier)}</b>${r.waybill?` · 송장번호 <b class="num">${esc(r.waybill)}</b>`:""}
+     ${canWrite&&r.courier!=="완료"?`<div class="row"><input id="dWaybill" placeholder="송장번호 (선택)" style="flex:1 1 180px;width:auto"><button class="btn" id="dBooked">예약 완료로 표시</button></div>`:""}</div>`:""}
+   <div class="row">${canWrite?`<button class="btn ghost" id="dEdit">수정</button><button class="btn ghost" id="dDup">이 내용으로 새 출고</button>`:""}${isAdmin?`<button class="btn ghost" id="dDel" style="color:var(--red)">삭제</button>`:""}<button class="btn ghost" data-close>닫기</button></div>`;
+  $("#detail").classList.add("open");
+  $("#detailCard").querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>save(r.id,{...r,status:b.dataset.st},true));
+  $("#dCopy").onclick=async()=>{try{await navigator.clipboard.writeText(courierText(r));toast("복사했습니다. 로지스허브에 붙여넣으세요.")}catch{toast("복사가 막혔습니다. 아래 글을 길게 눌러 복사하세요.")}};
+  const bk=$("#dBooked");if(bk)bk.onclick=()=>save(r.id,{...r,courier:"완료",waybill:$("#dWaybill").value.trim(),bookedAt:new Date().toISOString()},true);
+  const ed=$("#dEdit");if(ed)ed.onclick=()=>openForm(r,false);
+  const du=$("#dDup");if(du)du.onclick=()=>openForm(r,true);
+  const dl=$("#dDel");if(dl)dl.onclick=()=>{if(dl.dataset.sure){del(r.id)}else{dl.dataset.sure=1;dl.textContent="한 번 더 누르면 삭제"}};
+}
+function courierText(r){
+  const p=r.rcvAddr?r:{...parseInfo(r.info),...Object.fromEntries(Object.entries(r).filter(([k,x])=>/^rcv/.test(k)&&x))};
+  return `[택배사] 한진원클릭 · 박스 ${r.box||"S"}\n[보내는 분] ${arr(r.snd)[0]||"프라임에이치앤비"}\n${settings.sender||DEFAULT_SENDER}\n\n[받는 분] ${p.rcvName||"(확인 필요)"}\n휴대폰: ${p.rcvPhone||"(확인 필요)"}\n주소: ${p.rcvAddr||"(확인 필요)"}\n상세주소: ${p.rcvAddr2||arr(r.dest).join(", ")}\n\n[물품] ${r.itemName||shortName(r.mat)} · 단가 ${Number(r.itemPrice||DEFAULT_PRICE).toLocaleString()}원\n(${r.mat||""} ${r.wt||""} × ${r.qty??""})${r.memo?"\n배송메시지/비고: "+r.memo:""}`;
+}
+
+function fillLists(){
+  const mats=new Set(),cos=new Set(),wts=new Set();
+  for(const r of rows){if(r.mat)mats.add(r.mat);for(const k of ["po","end","dest","snd"])arr(r[k]).forEach(x=>cos.add(x));if(r.wt)wts.add(r.wt)}
+  for(const e of erp)if(e.name)mats.add(e.name);
+  const o=s=>[...s].sort().map(x=>`<option value="${esc(x)}">`).join("");
+  $("#dlMat").innerHTML=o(mats);$("#dlCo").innerHTML=o(cos);$("#dlWt").innerHTML=o(wts);
+}
+function openForm(r,dup){
+  editId=r&&!dup?r.id:null;const f=$("#form");f.reset();
+  $("#formTitle").textContent=editId?"출고 수정":"출고 등록";
+  const v=r?{...r}:{status:"요청",origin:"안산"};
+  if(!editId){v.ship=today();v.status="요청";v.quality=dup?v.quality:"";}
+  if(!editId&&!v.reg)v.reg=ls.get("reg")||"";
+  if(v.itemPrice==null||v.itemPrice==="")v.itemPrice=DEFAULT_PRICE;if(!v.box)v.box="S";if(!v.itemName)v.itemName=shortName(v.mat);
+  if(!v.rcvAddr&&v.info)Object.assign(v,Object.fromEntries(Object.entries(parseInfo(v.info)).filter(([k,x])=>x&&!v[k])));
+  for(const el of f.elements){if(!el.name)continue;const x=v[el.name];el.value=Array.isArray(x)?x.join(", "):(x??"")}
+  if(!f.elements.ship.value)f.elements.ship.value=today();
+  $("#detail").classList.remove("open");$("#formSheet").classList.add("open");fs();f.elements.mat.focus();
+}
+const fs=()=>{const v=$("#form").elements.mat.value.trim();$("#formStock").innerHTML=v?erpHtml(v):"원료명을 입력하면 ERP 창고별 재고가 여기에 나옵니다."};
+$("#form").elements.mat.addEventListener("input",()=>{clearTimeout(fs.t);fs.t=setTimeout(fs,250)});
+$("#addBtn").onclick=()=>{if(!canWrite){toast("이 계정은 보기 권한만 있습니다.");return}openForm(null,false)};
+$("#form").elements.dest.addEventListener("change",e=>{const f=$("#form");if(f.elements.info.value.trim())return;const d=arr(e.target.value)[0];const last=rows.find(r=>arr(r.dest).includes(d)&&r.info);if(last){f.elements.info.value=last.info;fillRcv(last);toast("이전 출고의 입고지·받는 분 정보를 채웠습니다. 확인하세요.")}});
+function fillRcv(src){const f=$("#form"),p=src.rcvAddr?src:parseInfo(src.info);for(const k of ["rcvName","rcvPhone","rcvAddr","rcvAddr2"])if(!f.elements[k].value&&p[k])f.elements[k].value=p[k]}
+$("#form").elements.info.addEventListener("change",e=>fillRcv({info:e.target.value}));
+$("#form").elements.mat.addEventListener("change",e=>{const f=$("#form");if(!f.elements.itemName.dataset.touched)f.elements.itemName.value=shortName(e.target.value)});
+$("#form").elements.itemName.addEventListener("input",e=>e.target.dataset.touched=1);
+$("#form").onsubmit=async e=>{
+  e.preventDefault();const f=e.target,d={};
+  for(const el of f.elements)if(el.name)d[el.name]=el.value.trim();
+  for(const k of ["po","end","dest","snd"])d[k]=arr(d[k]);
+  d.qty=d.qty===""?null:+d.qty;d.itemPrice=d.itemPrice===""?DEFAULT_PRICE:Math.min(+d.itemPrice,500000);
+  const base=editId?rows.find(r=>r.id===editId):null;
+  const rec={...(base||{}),...d};
+  if(!base&&ANSAN.includes(rec.origin))rec.courier="대기";
+  if(base&&ANSAN.includes(rec.origin)&&!base.courier)rec.courier="대기";
+  if(!base){rec.src="app";}
+  if(d.reg)ls.set("reg",d.reg);
+  $("#formSave").disabled=true;
+  const ok=await save(editId||null,rec,!!base);
+  $("#formSave").disabled=false;
+  if(ok)$("#formSheet").classList.remove("open");
+};
+async function save(id,rec,isEdit){
+  const data={...rec};if(id)data.id=id;
+  for(const k in data)if(data[k]===undefined)delete data[k];
+  try{
+    const saved=await run("api_save",data);
+    const i=rows.findIndex(r=>r.id===saved.id);const obj={...data,...saved};
+    if(i>=0)rows[i]=obj;else rows.unshift(obj);
+    renderAll();toast(isEdit?"저장했습니다.":"출고를 등록했습니다.");
+    if(isEdit&&$("#detail").classList.contains("open"))setTimeout(()=>openDetail(saved.id),50);
+    return true;
+  }catch(e){toast("저장하지 못했습니다: "+errMsg(e));if(/PIN/.test(errMsg(e)))lock();return false}
+}
+async function del(id){try{await run("api_delete",id);rows=rows.filter(r=>r.id!==id);renderAll();$("#detail").classList.remove("open");toast("삭제했습니다.")}catch(e){toast("삭제하지 못했습니다: "+errMsg(e))}}
+
+/* ERP */
+const ERP_META=["품목코드","코드","품목계층그룹명","품목그룹","품목명","품명","규격","단위","합계","검색창내용","재고수량","재고","수량","창고"];
+const ERP_SKIP_WH=["선결제","프라임에이치앤비"];
+const num=v=>{const n=parseFloat(String(v==null?"":v).replace(/,/g,""));return isNaN(n)?null:n};
+function parseRows(rows){
+  rows=rows.map(r=>(r||[]).map(c=>c==null?"":String(c).trim()));
+  let base="";for(const r of rows.slice(0,3)){const m=r.join(" ").match(/(\d{4})[.\/\-](\d{1,2})[.\/\-](\d{1,2})/);if(m){base=m[1]+"-"+m[2].padStart(2,"0")+"-"+m[3].padStart(2,"0");break}}
+  const hi=rows.findIndex(r=>r.some(c=>c==="품목명"||c==="품명"));
+  if(hi<0)return{rows:[],base};
+  const head=rows[hi],idx=(...ns)=>head.findIndex(h=>ns.includes(h));
+  const ci=idx("품목코드","코드"),ni=idx("품목명","품명"),si=idx("규격"),ui=idx("단위"),wi=idx("창고"),qi=idx("재고수량","재고","수량");
+  const whCols=head.map((h,i)=>[h,i]).filter(([h,i])=>h&&!ERP_META.includes(h)&&!ERP_SKIP_WH.includes(h)&&i>ni);
+  const out=[];
+  for(const r of rows.slice(hi+1)){
+    const code=ci>=0?(r[ci]||""):"",name=r[ni]||"";
+    if(!name||code==="합계"||/^(합계|총계)/.test(name))continue;
+    const b0={code,name,spec:si>=0?(r[si]||""):"",unit:ui>=0?(r[ui]||""):""};
+    if(wi>=0&&qi>=0){const q=num(r[qi]);if(q!==null&&!ERP_SKIP_WH.includes(r[wi]))out.push({...b0,wh:r[wi]||"",qty:String(q)})}
+    else if(whCols.length){for(const [h,i] of whCols){const q=num(r[i]);if(q)out.push({...b0,wh:h,qty:String(q)})}}
+    else if(qi>=0){const q=num(r[qi]);if(q!==null)out.push({...b0,wh:"",qty:String(q)})}
+  }
+  return{rows:out,base};
+}
+function parseErp(txt){const lines=txt.split(/\r?\n/).filter(l=>l.trim());return parseRows(lines.map(l=>l.includes("\t")?l.split("\t"):l.split(",")))}
+let erpDraft=[],erpBase="";
+function setDraft(p,src){
+  erpDraft=p.rows;erpBase=p.base;
+  const items=new Set(p.rows.map(r=>r.code+"|"+r.name)).size,whs=[...new Set(p.rows.map(r=>r.wh).filter(Boolean))];
+  $("#erpPreview").textContent=p.rows.length?`${src?src+" · ":""}${items}개 품목, 창고 ${whs.length}곳(${whs.join(", ")})${p.base?" · 기준일 "+p.base:""}을 읽었습니다. 맞으면 저장을 누르세요.`:"품목을 읽지 못했습니다. 이카운트 창고별재고현황 엑셀인지, 제목줄(품목코드·품목명)이 포함됐는지 확인하세요.";
+  $("#erpSaveBtn").disabled=!p.rows.length;
+}
+$("#erpPreviewBtn").onclick=()=>setDraft(parseErp($("#erpPaste").value),"");
+$("#erpFile").onchange=async e=>{
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  if(typeof XLSX==="undefined"){toast("엑셀 읽기 도구를 불러오지 못했습니다. 엑셀에서 표를 복사해 붙여넣어 주세요.");return}
+  try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});const ws=wb.Sheets[wb.SheetNames[0]];setDraft(parseRows(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:""})),f.name)}
+  catch(err){toast("엑셀 파일을 읽지 못했습니다.")}
+  e.target.value="";
+};
+$("#erpSaveBtn").onclick=async()=>{
+  if(!erpDraft.length)return;$("#erpSaveBtn").disabled=true;
+  const by=[ls.get("reg")||"",erpBase?"기준일 "+erpBase:""].filter(Boolean).join(" · ");
+  try{await run("api_erpSave",erpDraft,by);$("#erpPaste").value="";$("#erpPreview").textContent="";$("#erpPasteBox").open=false;toast("ERP 재고를 저장했습니다.");await loadErp()}
+  catch(e){toast("ERP 재고를 저장하지 못했습니다: "+errMsg(e));$("#erpSaveBtn").disabled=false}
+};
+async function loadErp(){
+  try{const r=await run("api_erp");erp=r.rows||[];erpMeta=r.updatedAt?{updatedAt:r.updatedAt,count:erp.length,by:r.by}:null}catch(e){erp=[];erpMeta=null}
+  renderErp();renderMat();fillLists();
+}
+function renderErp(){
+  const g={};for(const e of erp){const k=(e.code||"")+"|"+e.name;const o=g[k]??={code:e.code,name:e.name,spec:e.spec,unit:e.unit,whs:[],total:0};o.whs.push(e);o.total+=num(e.qty)||0}
+  const groups=Object.values(g),m=erpMeta;
+  $("#erpMeta").innerHTML=m?`이카운트 재고 · 올린 시각 <b class="num">${esc((m.updatedAt||"").slice(0,16).replace("T"," "))}</b> · ${groups.length}개 품목${m.by?" · "+esc(m.by):""} — 실시간 값이 아니라 마지막으로 올린 엑셀 기준입니다.`:"ERP 재고 자료가 아직 없습니다. 아래 '이카운트 재고 올리기'에서 창고별재고현황 엑셀을 올리세요.";
+  const q=$("#eq").value.trim().toLowerCase();
+  const list=groups.filter(o=>!q||(o.name+" "+o.code).toLowerCase().includes(q)).slice(0,300);
+  $("#erpBody").innerHTML=list.length?list.map(o=>`<tr><td class="hide-sm num">${esc(o.code)}</td><td><b>${esc(o.name)}</b>${o.spec?` <span class="tag">${esc(o.spec)}</span>`:""}<div class="sub" style="margin:2px 0 0">${o.whs.map(w=>`${esc(w.wh||"창고 미기재")} <b class="num">${esc(w.qty)}</b>`).join(" · ")}</div></td><td class="r num"><b>${Math.round(o.total*1000)/1000}</b> ${esc(o.unit||"")}</td></tr>`).join(""):`<tr><td colspan="3" class="empty">${erp.length?"검색 결과 없음":"자료 없음"}</td></tr>`;
+}
+
+/* settings & import */
+$("#setSave").onclick=async()=>{const url=$("#setUrl").value.trim();if(url&&!url.startsWith(HTTPS)){toast("주소는 "+HTTPS+" 로 시작해야 합니다.");return}
+  try{settings=await run("api_settings",{logishubUrl:url,sender:$("#setSender").value.trim()});toast("설정을 저장했습니다.")}catch(e){toast("설정을 저장하지 못했습니다: "+errMsg(e))}};
+$("#pinSave").onclick=async()=>{const n=$("#newPin").value.trim();if(n.length<4){toast("새 PIN은 4자리 이상이어야 합니다.");return}
+  try{await run("api_changePin",n);PIN=n;try{sessionStorage.setItem("pin",n)}catch{}$("#newPin").value="";toast("PIN을 바꿨습니다. 동료들에게 새 PIN을 알려주세요.")}catch(e){toast("PIN을 바꾸지 못했습니다: "+errMsg(e))}};
+$("#logout").onclick=()=>{try{sessionStorage.removeItem("pin")}catch{}PIN="";rows=[];renderAll();lock()};
+function renderAll(){sortRows();renderList();renderMat();fillLists();
+  const t=today(),todayN=rows.filter(r=>r.ship===t&&r.status!=="취소").length,open=rows.filter(r=>["요청","요청확인","요청확인(보세)","진행 중"].includes(r.status)).length;
+  const cq=rows.filter(r=>r.courier==="대기").length;
+  $("#sub").innerHTML=`택배예약 대기 <b class="num">${cq}</b>건 · 오늘 출고 <b class="num">${todayN}</b>건 · 처리 중 <b class="num">${open}</b>건 · 전체 <b class="num">${rows.length}</b>건`}
+function lock(){$("#gate").classList.add("open");$("#pinIn").value="";$("#pinIn").focus()}
+async function refresh(){try{rows=await run("api_list");renderAll()}catch(e){if(/PIN/.test(errMsg(e)))lock()}}
+async function enter(p){
+  PIN=p;$("#pinBtn").disabled=true;$("#gateMsg").textContent="확인 중…";
+  try{const r=await run("api_login");settings=r.settings||{};
+    try{sessionStorage.setItem("pin",p)}catch{}
+    $("#gate").classList.remove("open");$("#gateMsg").textContent="";
+    $("#setUrl").value=settings.logishubUrl||"";$("#setSender").value=settings.sender||DEFAULT_SENDER;
+    $("#sub").textContent="불러오는 중…";await refresh();loadErp();
+  }catch(e){PIN="";try{sessionStorage.removeItem("pin")}catch{}$("#gateMsg").textContent=errMsg(e)}
+  $("#pinBtn").disabled=false;
+}
+$("#gateForm").onsubmit=e=>{e.preventDefault();enter($("#pinIn").value.trim())};
+setInterval(()=>{if(PIN&&document.visibilityState==="visible"&&!document.querySelector("#formSheet.open"))refresh()},60000);
+{let p=null;try{p=sessionStorage.getItem("pin")}catch{}if(p)enter(p);else $("#pinIn").focus()}
+}
+</script>
+</body>
+</html>
